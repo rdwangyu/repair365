@@ -27,6 +27,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+WECHAT_CONFIG = {
+    'APPID': 'wx2576c4210717a45b',
+    'SECRET': '6afd8d452bfc1c36e8593f8d62b7222b',
+}
+
 
 # Application definition
 

@@ -3,8 +3,22 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import viewsets
-from .models import RepairForm
-from .serializers import RepairFormSerializer
+from .models import RepairForm, UserProfile
+from .serializers import RepairFormSerializer, UserProfileSerializer
+
+class UserProfileViewSet(viewsets.ModelViewSet):
+    serializer_class = UserProfileSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        form = serializer.save()
+        
+        return Response({
+            'message': 'user created successfully',
+            'form': UserProfileSerializer(form).data
+        }, status=status.HTTP_201_CREATED)    
+
 
 class RepairFormViewSet(viewsets.ModelViewSet):
     serializer_class = RepairFormSerializer
