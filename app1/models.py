@@ -7,10 +7,10 @@ class UserProfile(models.Model):
         ('implementer', '实施'),
     ]
     
-    openid = models.CharField(max_length=255, unique=True)  # OpenID，唯一
-    name = models.CharField(max_length=100)  # 用户名称
-    phone = models.CharField(max_length=15)  # 用户电话
-    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)  # 用户类型（客户或实施）
+    openid = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=15)
+    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
 
     def __str__(self):
         return f"{self.name} ({self.get_user_type_display()})"
