@@ -7,18 +7,49 @@ from rest_framework.pagination import PageNumberPagination
 from .models import RepairForm, UserProfile
 from .serializers import RepairFormSerializer, UserProfileSerializer
 from django.db.models import Q
+from django.conf import settings
+import requests
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        appid = settings.WECHAT_CONFIG['APPID']
+        secret = settings.WECHAT_CONFIG['SECRET']
+        params = {
+            'appid': appid,
+            'secret': secret,
+            'js_code': request.data['openid'],
+            'grant_type': 'authorization_code'
+        }
+        wechat_api_url = 'https://api.weixin.qq.com/sns/jscode2session'
+        response = requests.get(wechat_api_url, params=params, timeout=10)
+        result = response.json()
+        print('result', result)
+        if 'errcode' in result and result['errcode'] != 0:
+            return Response({
+                'message': f'微信接口错误: {result.get("errmsg", "未知错误")}',
+                'error_code': result.get('errcode')
+            }, status.HTTP_400_BAD_REQUEST)
+
+        openid = result['openid']
+        existing_user = UserProfile.objects.filter(openid=openid).first()
+        if existing_user:
+            return Response({
+                'message': '用户已存在',
+                'results': UserProfileSerializer(existing_user).data,
+                'success': True
+            }, status=status.HTTP_200_OK)
+
+        data = request.data;
+        data['openid'] = result['openid']
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         form = serializer.save()
         
         return Response({
             'message': 'user created successfully',
-            'form': UserProfileSerializer(form).data
+            'results': UserProfileSerializer(form).data
         }, status=status.HTTP_201_CREATED)    
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -108,3 +139,25 @@ class RepairFormViewSet(viewsets.ModelViewSet):
             'results': serializer.data
         })
 
+
+    def partial_update(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            
+            serializer = self.get_serializer(
+                instance, 
+                data=request.data, 
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            
+            return Response({
+                'message': '用户信息更新成功',
+                'results': serializer.data
+            })
+            
+        except Exception as e:
+            return Response({
+                'message': f'更新失败: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
