@@ -1,17 +1,18 @@
 from rest_framework import serializers
-from .models import RepairForm, UserProfile
+from .models import RepairOrder, UserProfile
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['openid', 'name', 'phone', 'user_type']
 
-class RepairFormSerializer(serializers.ModelSerializer):
+class RepairOrderSerializer(serializers.ModelSerializer):
     class Meta:
-        model = RepairForm
+        model = RepairOrder
         fields = [
-            'id', 'sponsor', 'receiver',
-            'description',
+            'id',
+            'receiver', 'sponsor',
+            'description', 'phone',
             'address',
             'created_at', 'updated_at',
             'appointment_time', 'actual_arrival_time',
@@ -19,3 +20,4 @@ class RepairFormSerializer(serializers.ModelSerializer):
             'amount', 'payment_method',
             'rating', 'comment'
         ]
+        read_only_fields = ['sponsor']

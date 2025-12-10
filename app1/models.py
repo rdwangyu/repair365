@@ -16,7 +16,7 @@ class UserProfile(models.Model):
         return f"{self.name} ({self.get_user_type_display()})"
 
 
-class RepairForm(models.Model):
+class RepairOrder(models.Model):
     ORDER_STATUS_CHOICES = [
         ('created', '新建'),
         ('cancelled', '取消'),
@@ -29,7 +29,13 @@ class RepairForm(models.Model):
         ('epay', '电子支付'),
     ]
 
-    sponsor = models.CharField('发起者', max_length=20)
+    sponsor = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name="repair_order",
+        verbose_name="关联用户"
+    )
+    phone = models.CharField('联系电话', max_length=15)
     description = models.TextField('问题描述')
     address = models.TextField('操作地址', blank=True, null=True)
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
@@ -60,6 +66,6 @@ class RepairForm(models.Model):
         verbose_name_plural = '报修订单'
 
     def __str__(self):
-        return self.sponsor
+        return f"{self.sponsor.name} - {self.description[:20]}"
 
 

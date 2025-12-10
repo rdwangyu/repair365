@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
-from .models import RepairForm, UserProfile
-from .serializers import RepairFormSerializer, UserProfileSerializer
+from .models import RepairOrder, UserProfile
+from .serializers import RepairOrderSerializer, UserProfileSerializer
 from django.db.models import Q
 from django.conf import settings
 import requests
@@ -57,33 +57,31 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 30    
 
-class RepairFormViewSet(viewsets.ModelViewSet):
-    queryset = RepairForm.objects.all()
-    serializer_class = RepairFormSerializer
+class RepairOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = RepairOrderSerializer
     pagination_class = StandardResultsSetPagination
-    
+    queryset = RepairOrder.objects.all()    
+
     def get_queryset(self):
-        queryset = RepairForm.objects.all()
-        
         search = self.request.query_params.get('search', '')
-        order_status = self.request.query_params.get('order_status', '')
+        orderStatus = self.request.query_params.get('orderStatus', '')
         ordering = self.request.query_params.get('ordering', '-created_at')
-        
+
         if search:
-            queryset = queryset.filter(
+            queryset = self.queryset.filter(
                 Q(sponsor__icontains=search) |
                 Q(description__icontains=search) |
                 Q(address__icontains=search) |
                 Q(receiver__icontains=search)
             )
         
-        if order_status:
-            status_list = [s.strip() for s in order_status.split(',') if s.strip()]
-            if status_list:
-                queryset = queryset.filter(order_status__in=status_list)
+        if orderStatus:
+            statusList = [s.strip() for s in orderStatus.split(',') if s.strip()]
+            if statusList:
+                queryset = self.queryset.filter(order_status__in=statusList)
         
         if ordering:
-            queryset = queryset.order_by(ordering)
+            queryset = self.queryset.order_by(ordering)
         
         return queryset
     
@@ -96,49 +94,47 @@ class RepairFormViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         
         serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def destroy(self, request, pk=None, *args, **kwargs):
-        form = get_object_or_404(RepairForm, pk=pk)
-        form.delete()
-        
         return Response({
-            'message': 'form deleted successfully'
-        }, status=status.HTTP_204_NO_CONTENT)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        form = serializer.save()
-        
-        return Response({
-            'message': 'form created successfully',
-            'results': RepairFormSerializer(form).data
-        }, status=status.HTTP_201_CREATED)    
-
-    @action(detail=False, methods=['get'], url_path='by-id')
-    def get_by_id(self, request):
-        id = request.query_params.get('id')
-        if not id:
-            return Response({
-                'error': '参数缺失：必须提供id参数'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        forms = RepairForm.objects.filter(id=id)
-        if not forms.exists():
-            return Response({
-                'message': f'未找到orderid为"{id}"的维修单',
-                'count': 0,
-                'results': []
-            }, status=status.HTTP_200_OK)
-        
-        serializer = self.get_serializer(forms, many=True)
-        return Response({
-            'message': f'找到 {forms.count()} 条记录',
-            'count': forms.count(),
+            'message': 'ok',
             'results': serializer.data
         })
 
+    def retrieve(self, request, pk=None):
+        order = get_object_or_404(self.queryset, pk=pk)
+        return Response(
+            {
+                'message': 'ok',
+                'results': RepairOrderSerializer(order).data
+            }
+        )
+
+    def create(self, request, *args, **kwargs):
+        userOpenId = request.data.get("userOpenId")
+        if not userOpenId:
+            return Response(
+                {'message': 'missing userOpenId'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = UserProfile.objects.get(openid=userOpenId)
+        except UserProfile.DoesNotExist:
+            return Response(
+                {'message': 'user not found'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        order_created = serializer.save(sponsor=user)
+        return Response(
+            {
+                'message': 'ok',
+                'results': RepairOrderSerializer(order_created).data
+            },
+            status=status.HTTP_201_CREATED
+        )
 
     def partial_update(self, request, *args, **kwargs):
         try:

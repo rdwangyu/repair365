@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import RepairForm, UserProfile
+from .models import RepairOrder, UserProfile
 
-admin.site.register(RepairForm)
+admin.site.register(RepairOrder)
 admin.site.register(UserProfile)
