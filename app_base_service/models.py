@@ -41,8 +41,21 @@ class UserCustomerModel(CommonModel, UserModel):
         verbose_name = "customer"
         verbose_name_plural = verbose_name
 
-
 class UserMasterModel(CommonModel):
+    def upload_avator_file(instance, filename):
+        ext = filename.split('.')[-1]
+        return f"avator/{instance.fullname}_{instance.phone}.{ext}"
+    def upload_idcard_font_file(instance, filename):
+        ext = filename.split('.')[-1]
+        return f"idcard/{instance.fullname}_{instance.phone}_font.{ext}"
+    def upload_idcard_back_file(instance, filename):
+        ext = filename.split('.')[-1]
+        return f"idcard/{instance.fullname}_{instance.phone}_back.{ext}"
+    def upload_business_license_file(instance, filename):
+        ext = filename.split('.')[-1]
+        return f"business_license/{instance.fullname}_{instance.phone}.{ext}"
+
+    
     ACCOUNT_STATUS_CHOICES = {
         0: "create",
         1: "review",
@@ -50,10 +63,10 @@ class UserMasterModel(CommonModel):
         3: "delete"
     }
     fullname = models.CharField(max_length=64)
-    avatar = models.ImageField()
-    idcard_front = models.ImageField()
-    idcard_back = models.ImageField()
-    business_license = models.ImageField()
+    avatar = models.ImageField(upload_to=upload_avator_file)
+    idcard_front = models.ImageField(upload_to=upload_idcard_font_file)
+    idcard_back = models.ImageField(upload_to=upload_idcard_back_file)
+    business_license = models.ImageField(upload_to=upload_business_license_file)
     phone = models.CharField(max_length=11)
     address = models.TextField(max_length=256)
     work_year = models.SmallIntegerField()
