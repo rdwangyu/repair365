@@ -12,8 +12,7 @@ def create_response_data(errcode = 0, errmsg = '', result = {}):
 # Create your views here.
 def login(request):
     data = json.loads(request.body)
-    code = data.get('code')
-    if not code:
+    if 'code' not in data:
         return JsonResponse(create_response_data(-1, 'missing parameters'))
 
     wx_resp = {}
@@ -21,7 +20,7 @@ def login(request):
     params = {
         'appid': 'PPwx2576c4210717a45b',
         'secret': 'f03e98a6fdcac7e37390cf2b2bb4a986',
-        'js_code': code,
+        'js_code': data['code'],
         'grant_type': 'authorization_code',
     }
     try:
@@ -33,24 +32,57 @@ def login(request):
     except Exception as e:
         return JsonResponse(create_response_data(-1, f'failed to request wx api: {e}'))
 
-    print(wx_resp)
+    print('wx response: ', wx_resp)
     master = UserMasterModel.objects.filter(openid=wx_resp['openid'])
     if master:
-        master.access_token = wx_resp['session_key']
-        master.token_expired = timezone.now() + timedelta(days=7)
-        master.save()
+        master.update(
+            access_token=wx_resp['session_key'],
+            token_expired = timezone.now() + timedelta(days=7)
+        )    
     else:
         customer = UserCustomerModel.objects.filter(openid=wx_resp['openid'])
-        if customer:
-            customer.access_token = wx_resp['session_key']
-            customer.save()
-        else:
+        if not customer:
             customer = UserCustomerModel.objects.create(
-                openid=wx_resp.openid,
-                access_token = wx_resp['session_key'],
-                token_expired = timezone.now() + timedelta(days=7)
+                openid=wx_resp['openid'],
             )
             if not customer:
                 return JsonResponse(create_response_data(-1, 'failed to register customer'))
-    
+        customer.update(
+            access_token=wx_resp['session_key'],
+            token_expired = timezone.now() + timedelta(days=7)
+        )    
     return JsonResponse(create_response_data(errmsg='login success'))
+
+
+def updateCustomerProfile(request):
+    data = json.loads(request.body)
+    if 'openid' not in data:
+        return JsonResponse(create_response_data(-1, "missing parameters"))
+        
+    data_updated = {}
+    if 'nickname' in data:
+        data_updated['nickname'] = data['nickname']
+    if 'phone' in data:
+        data_updated['phone'] = data['phone']
+    if 'sex' in data:
+        data_updated['sex'] = data['sex']
+    if 'age' in data:
+        data_updated['age'] = data['age']
+    if not data_updated:
+        return JsonResponse(create_response_data(-1, 'missage updated parameters'))
+    customer = UserCustomerModel.objects.filter(openid=data['openid'])
+    if not customer:
+        return JsonResponse(create_response_data(-1, f'user({data["openid"]}) not found'))
+    rows = customer.update(**data_updated)
+    return JsonResponse(create_response_data(result={'updated': rows}))
+
+
+
+
+
+
+
+
+
+
+
