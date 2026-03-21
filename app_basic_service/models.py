@@ -65,6 +65,7 @@ class UserMasterModel(CommonModel, UserModel):
     #active_time_range
     level = models.SmallIntegerField(blank=True, default=0)
     user_grade = models.DecimalField(max_digits=2, decimal_places=1, blank=True, default=1.0)
+    account_status = models.SmallIntegerField(choices=ACCOUNT_STATUS_CHOICES, blank=True, default=0)
 
     def __str__(self):
         return f'User({self.fullname})-Phone({self.phone})'

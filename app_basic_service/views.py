@@ -1,10 +1,13 @@
-from django.http import JsonResponse
+from django.http import JsonResponse # todo: delete after
 from django.utils import timezone
-from django.views import View
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from datetime import timedelta
 import requests
 import json
 from .models import *
+from .serializers import *
+from rest_framework import status
 
 def create_response_data(errcode = 0, errmsg = '', result = {}):
     return {'errcode': errcode, 'errmsg': errmsg, 'result': result}
@@ -55,7 +58,7 @@ def login(request):
 
 
 def updateCustomerProfile(request):
-    data = json.loads(request.body)
+    data = json.loads(request.body) # todo: use request.data
     if 'openid' not in data:
         return JsonResponse(create_response_data(-1, "missing parameters"))
         
@@ -76,11 +79,64 @@ def updateCustomerProfile(request):
     rows = customer.update(**data_updated)
     return JsonResponse(create_response_data(result={'updated': rows}))
 
+class UserMasterView(APIView):
+    def post(self, request):
+        serializer = UserMasterSerializer(data=request.data)
+        if serializer.is_valid():
+            instance = serializer.save(token_expired=timezone.now()+timedelta(days=7))
+        else:
+            return Response(create_response_data(-1, f'check not pass: {serializer.errors}'), status=status.HTTP_400_BAD_REQUEST)
+    
+        return Response(create_response_data(0))
+        
 
 
+def updateMasterProfile(request):
+    data = json.loads(request.body)
+    try:
+        master = UserMasterModel.objects.get(openid=data['openid'])
+    except UserMasterModel.DoesNotExist:
+        return JsonResponse(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+
+    serializer = UserMasterSerializer(master, data=data, partial=True)
+    if serializer.is_valie():
+        serializer.save()
+    else:
+        return JsonResponse(create_request.data(-1, 'check not pass'), status=status.HTTP_400_BAD_REQUEST)
+        
+    return JsonResponse(create_response_data(result=serializer.data))
 
 
+def deleteUser(request):
+    data = json.loads(request.body)
+    openid = data['openid']
+    customer = UserCustomerModel.objects.filter(openid=openid)
+    if customer:
+        customer.update(account_status=2)
+    else:
+        master = UserMasterModel.objects.filter(openid=openid)
+        if master:
+            master.update(account_status=3)
+        else:
+            return JsonResponse(create_request_data(-1, 'user not found', status=status.HTTP_400_BAD_REQUEST))
+    return JsonResponse(create_response_data(0))
 
+
+class RepireOrderView(APIView):
+    def get(self, request):
+        return JsonResponse(create_response_data())
+
+
+    def post(self, request):
+        return JsonResponse(create_response_data())
+
+
+    def put(self, request):
+        return JsonResponse(create_respnse_data())
+
+
+    def delete(self, request):
+        return JsonResponse(create_response_data())
 
 
 
