@@ -13,4 +13,16 @@ class UserMasterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("phone too short")
         return value
 
+class UserCustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserCustomerModel
+        fields = '__all__'
+
+    def validate_phone(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError('phone not digit')
+        if len(value) != 11:
+            raise serializers.ValidationError("phone too short")
+        return value
+
 
