@@ -12,30 +12,30 @@ from rest_framework import status
 def create_response_data(errcode = 0, errmsg = '', result = {}):
     return {'errcode': errcode, 'errmsg': errmsg, 'result': result}
 
-# Create your views here.
+def login_wechat(code):
+    url = 'https://api.weixin.qq.com/sns/jscode2session'
+    params = {
+        'appid': 'PPwx2576c4210717a45b',
+        'secret': 'f03e98a6fdcac7e37390cf2b2bb4a986',
+        'js_code': code,
+        'grant_type': 'authorization_code',
+    }
+    try:
+        response = requests.get(url, params=params, timeout=5)
+        result = response.json()
+        result = {'openid': 'test1234openid', 'session_key': 'session123'} # test
+    except Exception as e:
+        return create_response_data(-1, f'failed to request api: {e}')
+
+    return create_response_data(result=result)
+
+
+'''
 def login(request):
     data = json.loads(request.body)
     if 'code' not in data:
         return JsonResponse(create_response_data(-1, 'missing parameters'))
 
-    wx_resp = {}
-    url = 'https://api.weixin.qq.com/sns/jscode2session'
-    params = {
-        'appid': 'PPwx2576c4210717a45b',
-        'secret': 'f03e98a6fdcac7e37390cf2b2bb4a986',
-        'js_code': data['code'],
-        'grant_type': 'authorization_code',
-    }
-    try:
-        wx_resp = requests.get(url, params=params, timeout=5)
-        wx_resp = wx_resp.json()
-        wx_resp = {'openid': 'test1234openid', 'session_key': 'session123'} # test
-        if 'openid' not in wx_resp:
-            return JsonResponse(create_response_data(-1))
-    except Exception as e:
-        return JsonResponse(create_response_data(-1, f'failed to request wx api: {e}'))
-
-    print('wx response: ', wx_resp)
     master = UserMasterModel.objects.filter(openid=wx_resp['openid'])
     if master:
         master.update(
@@ -55,7 +55,7 @@ def login(request):
             token_expired = timezone.now() + timedelta(days=7)
         )    
     return JsonResponse(create_response_data(errmsg='login success'))
-
+'''
 
 def updateCustomerProfile(request):
     data = json.loads(request.body) # todo: use request.data
@@ -80,16 +80,65 @@ def updateCustomerProfile(request):
     return JsonResponse(create_response_data(result={'updated': rows}))
 
 class UserMasterView(APIView):
+    # login
     def post(self, request):
-        serializer = UserMasterSerializer(data=request.data)
-        if serializer.is_valid():
-            instance = serializer.save(token_expired=timezone.now()+timedelta(days=7))
-        else:
-            return Response(create_response_data(-1, f'check not pass: {serializer.errors}'), status=status.HTTP_400_BAD_REQUEST)
-    
-        return Response(create_response_data(0))
-        
+        if 'code' not in request.data:
+            return Response(create_response_data(-1, 'code not found'))
 
+        login_response = login_wechat(request.data.get('openid'))
+        if login_response['errcode'] != 0:
+            return Response(create_response_data(-1, f"failed to login({login_response['errcode']}'): {login_response['errmsg']}"))
+
+        data = {
+            'openid': login_response['result']['openid'],
+            'access_token': login_response['result']['session_key'],
+            'token_expired': timezone.now() + timedelta(days=7),
+            'fullname': request.data.get('fullname'),
+            'age': request.data.get('age'),
+            'sex': request.data.get('sex'),
+            'phone': request.data.get('phone'),
+            'address': request.data.get('address'),
+            'work_year': request.data.get('work_year'),
+            'avatar': request.data.get('avatar'),
+            'identity_card_0': request.data.get('identity_card_0'),
+            'identity_card_1': request.data.get('identity_card_1'),
+            'business_license': request.data.get('business_license'),
+        }
+        serializer = UserMasterSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+    
+        return Response(create_response_data(result=serializer.data))
+
+    def put(self, request):
+        try:
+            user = UserMasterModel.objects.get(access_token=request.data.get('token'))
+        except UserMasterModel.DoesNotExist:
+            return Response(-1, 'user not found', status=status.HTTP_400_NOT_FOUND)
+        serializer = UserMasterSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(create_response_data(result=serializer.data))
+
+    def delete(self, request):
+        try:
+            user = UserMasterModel.objects.get(access_token=request.data.get('token'))
+        except UserMasterModel.DoesNotExist:
+            return Response(-1, 'user not found', status=status.HTTP_400_NOT_FOUND)
+        data = { 'account_status': 3}
+        serializer = UserMasterSerializer(user, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(create_response_data(result='delete success'))
+        
 
 def updateMasterProfile(request):
     data = json.loads(request.body)

@@ -4,8 +4,7 @@ from .models import *
 class UserMasterSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserMasterModel
-        fields = ['fullname', 'avatar', 'identity_card_0', 'identity_card_1',
-                  'business_license', 'phone', 'address', 'work_year']
+        fields = '__all__'
 
     def validate_phone(self, value):
         if not value.isdigit():
@@ -13,3 +12,5 @@ class UserMasterSerializer(serializers.ModelSerializer):
         if len(value) != 11:
             raise serializers.ValidationError("phone too short")
         return value
+
+

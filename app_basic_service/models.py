@@ -9,13 +9,9 @@ class CommonModel(models.Model):
         abstract = True
 
 class UserModel(models.Model):
-    SEX_CHOICES = [(0, 'unknown'), (1, 'male'), (2, 'female')]
-
     openid = models.CharField(max_length=32, unique=True)
     access_token = models.CharField(max_length=128)
     token_expired = models.DateTimeField()
-    sex = models.SmallIntegerField(choices=SEX_CHOICES, blank=True, default=0)
-    age = models.SmallIntegerField(blank=True, default=0)
 
     class Meta:
         abstract = True
@@ -30,6 +26,8 @@ class UserCustomerModel(CommonModel, UserModel):
 
     phone = models.CharField(max_length=11)
     nickname = models.CharField(max_length=64, blank=True, default='')
+    sex = models.SmallIntegerField(blank=True, default=0)
+    age = models.SmallIntegerField(blank=True, default=0)
     address = models.TextField(max_length=256, blank=True, default='')
     account_status = models.SmallIntegerField(choices=ACCOUNT_STATUS_CHOICES, blank=True, default=0)
 
@@ -53,6 +51,8 @@ class UserMasterModel(CommonModel, UserModel):
         3: 'delete'
     }
     fullname = models.CharField(max_length=64)
+    sex = models.SmallIntegerField()
+    age = models.SmallIntegerField()
     avatar = models.ImageField(upload_to=upload_image_file)
     identity_card_0 = models.ImageField(upload_to=upload_image_file)
     identity_card_1 = models.ImageField(upload_to=upload_image_file)
