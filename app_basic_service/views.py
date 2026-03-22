@@ -8,6 +8,7 @@ import json
 from .models import *
 from .serializers import *
 from rest_framework import status
+import random
 
 def create_response_data(errcode = 0, errmsg = '', result = {}):
     return {'errcode': errcode, 'errmsg': errmsg, 'result': result}
@@ -45,7 +46,7 @@ class UserCustomerView(APIView):
             'token_expired': timezone.now() + timedelta(days=7)
         }
         
-        serializer = UserCustomerSerializer(data=data, partial=True)
+        serializer = UserCustomerSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
         else:
@@ -164,13 +165,40 @@ class UserMasterView(APIView):
 Repair Order
 
 '''
-class RepireOrderView(APIView):
+class RepairOrderView(APIView):
     def get(self, request):
         return JsonResponse(create_response_data())
 
-
     def post(self, request):
-        return JsonResponse(create_response_data())
+        if 'token' not in request.data:
+            return Response(create_response_data(-1, 'token not fount'))
+
+        try:
+            user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
+        except UserMasterModel.DoesNotExist:
+            return Response(-1, 'user not found', status=status.HTTP_404_NOT_FOUND)
+
+        data = {
+            'order_number': f"BYQG{timezone.now().strftime('%Y%m%d%H%M%s')}{random.randint(0, 999)}",
+            'sponsor': user.id,
+            'location': request.data.get('location'),
+            'repair_category': request.data.get('repair_category'),
+            'contact_phone': request.data.get('contact_phone'),
+            'issue_description': request.data.get('issue_description'),
+        }
+        if 'appointment_time' in request.data:
+            data['appointment_time'] = request.data.get('appointment_time')
+        if 'comment' in request.data:
+            data['comment'] = request.data.get('comment')
+
+        serializer = RepairOrderSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(create_response_data(result=serializer.data))
+            
 
 
     def put(self, request):
@@ -179,6 +207,9 @@ class RepireOrderView(APIView):
 
     def delete(self, request):
         return JsonResponse(create_response_data())
+
+
+
 
 
 

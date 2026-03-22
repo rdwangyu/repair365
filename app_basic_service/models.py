@@ -24,7 +24,7 @@ class UserCustomerModel(CommonModel, UserModel):
         2: 'delete',
     }
 
-    phone = models.CharField(max_length=11)
+    phone = models.CharField(max_length=11, blank=True, default='')
     nickname = models.CharField(max_length=64, blank=True, default='')
     sex = models.SmallIntegerField(blank=True, default=0)
     age = models.SmallIntegerField(blank=True, default=0)
@@ -89,18 +89,19 @@ class RepairOrderModel(CommonModel):
         2: 'delete',
     }
     
-    order_number = models.CharField(max_length=12)
+    order_number = models.CharField(max_length=36)
     sponsor = models.ForeignKey(UserCustomerModel, on_delete=models.DO_NOTHING)
-    assignee = models.ForeignKey(UserMasterModel, on_delete=models.DO_NOTHING)
     location = models.TextField(max_length=256)
     repair_category = models.SmallIntegerField(choices=REPAIR_CATEGORY_CHOICES)
     contact_phone = models.CharField(max_length=11)
     issue_description = models.TextField(max_length=4096)
-    appointment_time = models.DateTimeField(auto_now_add=True)
+    appointment_time = models.DateTimeField(blank=True, null=True)
+    comment = models.TextField(max_length=1024, blank=True, default='')
+    assignee = models.ForeignKey(UserMasterModel, blank=True, null=True, on_delete=models.DO_NOTHING)
     transaction_amount = models.DecimalField(max_digits=6, decimal_places=2, blank=True, default=0.0)
     transaction_type = models.SmallIntegerField(choices=TRANSACTION_TYPE_CHOICES, blank=True, default=0)
     order_status = models.SmallIntegerField(choices=ORDER_STATUS_CHOICES, blank=True, default=0)
-    comment = models.TextField(max_length=1024, blank=True, default='')
+
 
     def __str__(self):
         return f'{self.sponsor.nickname}->{self.assignee.fullname} {self.get_repair_category_display()} {self.transaction_amount}'
