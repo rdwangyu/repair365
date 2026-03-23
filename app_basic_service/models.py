@@ -89,7 +89,7 @@ class RepairOrderModel(CommonModel):
         2: 'delete',
     }
     
-    order_number = models.CharField(max_length=36)
+    order_number = models.CharField(max_length=36, unique=True)
     sponsor = models.ForeignKey(UserCustomerModel, on_delete=models.DO_NOTHING)
     location = models.TextField(max_length=256)
     repair_category = models.SmallIntegerField(choices=REPAIR_CATEGORY_CHOICES)
@@ -104,7 +104,7 @@ class RepairOrderModel(CommonModel):
 
 
     def __str__(self):
-        return f'{self.sponsor.nickname}->{self.assignee.fullname} {self.get_repair_category_display()} {self.transaction_amount}'
+        return f'{self.sponsor.nickname}-{self.contact_phone}-{self.get_repair_category_display()}'
 
     class Meta:
         db_table = 'repair_order'

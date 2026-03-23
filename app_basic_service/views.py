@@ -1,7 +1,8 @@
-from django.http import JsonResponse # todo: delete after
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import NotFound
 from datetime import timedelta
 import requests
 import json
@@ -9,6 +10,7 @@ from .models import *
 from .serializers import *
 from rest_framework import status
 import random
+from django.db.models import Q
 
 def create_response_data(errcode = 0, errmsg = '', result = {}):
     return {'errcode': errcode, 'errmsg': errmsg, 'result': result}
@@ -29,6 +31,27 @@ def login_wechat(code):
         return create_response_data(-1, f'failed to request api: {e}')
 
     return create_response_data(result=result)
+
+class CustomPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+    page_query_param = 'page'
+    
+    def get_paginated_result(self, data):
+        return {
+            'orders': data,
+            'pagination': {
+                'current_page': self.page.number,
+                'page_size': self.page.paginator.per_page,
+                'total': self.page.paginator.count,
+                'total_pages': self.page.paginator.num_pages,
+                'has_next': self.page.has_next(),
+                'has_prev': self.page.has_previous(),
+                'next_page': self.page.next_page_number() if self.page.has_next() else None,
+                'prev_page': self.page.previous_page_number() if self.page.has_previous() else None,
+            }
+        }
 
 
 class UserCustomerView(APIView):
@@ -133,7 +156,7 @@ class UserMasterView(APIView):
         try:
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
         except UserMasterModel.DoesNotExist:
-            return Response(-1, 'user not found', status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
         serializer = UserMasterSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -148,7 +171,7 @@ class UserMasterView(APIView):
         try:
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
         except UserMasterModel.DoesNotExist:
-            return Response(-1, 'user not found', status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
         data = { 'account_status': 3}
         serializer = UserMasterSerializer(user, data=data, partial=True)
         if serializer.is_valid():
@@ -165,9 +188,48 @@ class UserMasterView(APIView):
 Repair Order
 
 '''
-class RepairOrderView(APIView):
-    def get(self, request):
-        return JsonResponse(create_response_data())
+class RepairOrderOfCustomerView(APIView):
+    def get(self, request, pk=None):
+        if 'token' not in request.query_params:
+            return Response(create_response_data(-1, 'token not found'))
+        try:
+            user = UserCustomerModel.objects.get(access_token=request.query_params.get('token'))
+        except UserCustomerModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+
+        queryset = RepairOrderModel.objects.filter(sponsor=user)
+        if 'status' in request.query_params:
+            queryset = queryset.filter(order_status=int(request.query_params.get('status')))
+        if 'recent_date' in request.query_params:
+            recent_date = request.query_params.get('recent_date')
+            recent_date_value = timezone.now()
+            if recent_date is 'last 3 days':
+                recent_date_value = recent_date_value - timedelta(days=3)
+            elif recent_date is 'last a week':
+                recent_date_value = recent_date_value - timedelta(days=7)
+            elif recent_date is 'last a month':
+                recent_date_value = recent_date_value - timedelta(days=30)
+            else:
+                recent_date_value = recent_date_value - timedelta(days=90)
+            queryset = queryset.filter(create_time__gte=recent_date_value)
+
+        if 'search_keyword' in request.query_params:
+            search_keyword = request.query_params.get('search_keyword', '').strip()
+            search_conditions = Q(order_number__icontains=search_keyword)
+            search_conditions |= Q(issue_description__icontains=search_keyword)
+            search_conditions |= Q(comment__icontains=search_keyword)
+            queryset = queryset.filter(search_conditions)
+
+        queryset = queryset.order_by('-create_time')
+
+        paginator = CustomPagination()
+        try:
+            page = paginator.paginate_queryset(queryset, request)
+        except NotFound as e:
+            return Response(create_response_data(-1, e.detail), status=status.HTTP_400_BAD_REQUEST)
+        serializer = RepairOrderSerializer(page, many=True)
+        result = paginator.get_paginated_result(serializer.data)
+        return Response(create_response_data(result=result))
 
     def post(self, request):
         if 'token' not in request.data:
@@ -175,8 +237,8 @@ class RepairOrderView(APIView):
 
         try:
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
-        except UserMasterModel.DoesNotExist:
-            return Response(-1, 'user not found', status=status.HTTP_404_NOT_FOUND)
+        except UserCustomerModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
 
         data = {
             'order_number': f"BYQG{timezone.now().strftime('%Y%m%d%H%M%s')}{random.randint(0, 999)}",
@@ -200,13 +262,27 @@ class RepairOrderView(APIView):
         return Response(create_response_data(result=serializer.data))
             
 
-
-    def put(self, request):
-        return JsonResponse(create_respnse_data())
-
-
     def delete(self, request):
-        return JsonResponse(create_response_data())
+        if 'token' not in request.data:
+            return Response(create_response_data(-1, 'token not fount'))
+        if 'order_number' not in request.data:
+            return Response(create_response_data(-1, 'order number not fount'))
+        
+        try:
+            user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
+            order = RepairOrderModel.objects.get(sponsor=user, order_number=request.data.get('order_number'))
+        except UserCustomerModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+        except RepairOrderModel.DoesNotExist:
+            return Response(create_response_data(-1, 'order not found'), status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = RepairOrderSerializer(order, data={'order_status': 2}, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(create_response_data(result='delete success'))
 
 
 
