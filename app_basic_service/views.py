@@ -57,7 +57,7 @@ class CustomPagination(PageNumberPagination):
 class UserCustomerView(APIView):
     def post(self, request):
         if 'code' not in request.data:
-            return Response(create_response_data(-1, 'code not found'))
+            return Response(create_response_data(-1, 'code missing'))
 
         login_response = login_wechat(request.data.get('openid'))
         if login_response['errcode'] != 0:
@@ -79,7 +79,7 @@ class UserCustomerView(APIView):
 
     def put(self, request):
         if 'token' not in request.data:
-            return Response(create_response_data(-1, 'token not found'))
+            return Response(create_response_data(-1, 'token missing'))
         try:
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
         except UserCustomerModel.DoesNotExist:
@@ -96,7 +96,7 @@ class UserCustomerView(APIView):
 
     def delete(self, request):
         if 'token' not in request.data:
-            return Response(create_response_data(-1, 'token not found'))
+            return Response(create_response_data(-1, 'token missing'))
         try:
 
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
@@ -121,7 +121,7 @@ class UserMasterView(APIView):
     # login
     def post(self, request):
         if 'code' not in request.data:
-            return Response(create_response_data(-1, 'code not found'))
+            return Response(create_response_data(-1, 'code missing'))
 
         login_response = login_wechat(request.data.get('openid'))
         if login_response['errcode'] != 0:
@@ -152,7 +152,7 @@ class UserMasterView(APIView):
 
     def put(self, request):
         if 'token' not in request.data:
-            return Response(create_response_data(-1, 'token not found'))
+            return Response(create_response_data(-1, 'token missing'))
         try:
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
         except UserMasterModel.DoesNotExist:
@@ -167,7 +167,7 @@ class UserMasterView(APIView):
 
     def delete(self, request):
         if 'token' not in request.data:
-            return Response(create_response_data(-1, 'token not found'))
+            return Response(create_response_data(-1, 'token missing'))
         try:
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
         except UserMasterModel.DoesNotExist:
@@ -191,7 +191,7 @@ Repair Order
 class RepairOrderOfCustomerView(APIView):
     def get(self, request, pk=None):
         if 'token' not in request.query_params:
-            return Response(create_response_data(-1, 'token not found'))
+            return Response(create_response_data(-1, 'token missing'))
         try:
             user = UserCustomerModel.objects.get(access_token=request.query_params.get('token'))
         except UserCustomerModel.DoesNotExist:
@@ -233,7 +233,7 @@ class RepairOrderOfCustomerView(APIView):
 
     def post(self, request):
         if 'token' not in request.data:
-            return Response(create_response_data(-1, 'token not fount'))
+            return Response(create_response_data(-1, 'token missing'))
 
         try:
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
@@ -264,9 +264,9 @@ class RepairOrderOfCustomerView(APIView):
 
     def delete(self, request):
         if 'token' not in request.data:
-            return Response(create_response_data(-1, 'token not fount'))
+            return Response(create_response_data(-1, 'token missing'))
         if 'order_number' not in request.data:
-            return Response(create_response_data(-1, 'order number not fount'))
+            return Response(create_response_data(-1, 'order number missing'))
         
         try:
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
@@ -286,7 +286,46 @@ class RepairOrderOfCustomerView(APIView):
 
 
 
+class RepairOrderOfMasterView(APIView):
+    def get(self, request):
+        return
 
+
+    def put(self, request):
+        if 'token' not in request.data:
+            return Response(create_response_data(-1, 'token missing'))
+        if 'order_number' not in request.data:
+            return Response(create_response_data(-1, 'order number missing'))
+
+        try:
+            user = UserMasterModel.objects.get(access_token=request.data.get('token'))
+            order = RepairOrderModel.objects.get(order_number=request.data.get('order_number'))
+        except UserMasterModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+        except RepairOrderModel.DoesNotExist:
+            return Response(create_response_data(-1, 'order not found'), status=status.HTTP_404_NOT_FOUND)
+
+        data = {
+            'assignee': user.id,
+            'order_status': request.data.get('order_status', 30)
+        }
+        if 'transaction_amount' in request.data:
+            data['transaction_amount'] = request.data.get('transaction_amount')
+            if 'transaction_type' not in request.data:
+                return Response(create_response_data(-1, 'transaction_type missing'))
+            data['transaction_type'] = request.data.get('transaction_type')
+            data['order_status'] = 50
+        serializer = RepairOrderSerializer(order, data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            
+        return Response(create_response_data(result=serializer.data))
+
+
+
+    
 
 
 

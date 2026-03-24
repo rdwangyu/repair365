@@ -19,9 +19,9 @@ class UserModel(models.Model):
 class UserCustomerModel(CommonModel, UserModel):
 
     ACCOUNT_STATUS_CHOICES = {
-        0: 'create',
-        1: 'block',
-        2: 'delete',
+        0: 'created',
+        1: 'blocked',
+        2: 'deleted',
     }
 
     phone = models.CharField(max_length=11, blank=True, default='')
@@ -45,10 +45,10 @@ class UserMasterModel(CommonModel, UserModel):
         return f'image/{instance.fullname}_{instance.phone}/uploads.{ext}'
     
     ACCOUNT_STATUS_CHOICES = {
-        0: 'create',
-        1: 'review',
-        2: 'block',
-        3: 'delete'
+        0: 'created',
+        1: 'audited',
+        2: 'blocked',
+        3: 'deleted'
     }
     fullname = models.CharField(max_length=64)
     sex = models.SmallIntegerField()
@@ -84,9 +84,17 @@ class RepairOrderModel(CommonModel):
         0: '网络支付'
     }
     ORDER_STATUS_CHOICES = {
-        0: 'create',
-        1: 'cancel',
-        2: 'delete',
+        0: 'created',
+        1: 'canceled',
+        10: 'audited',
+        20: 'published',
+        30: 'assigned',
+        40: 'arrived',
+        50: 'resolved',
+        51: 'unresolved',
+        60: 'paid',
+        61: 'refunded',
+        999: 'deleted',
     }
     
     order_number = models.CharField(max_length=36, unique=True)
