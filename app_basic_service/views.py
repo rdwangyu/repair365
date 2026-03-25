@@ -18,7 +18,7 @@ def create_response_data(errcode = 0, errmsg = '', result = {}):
 def login_wechat(code):
     url = 'https://api.weixin.qq.com/sns/jscode2session'
     params = {
-        'appid': 'PPwx2576c4210717a45b',
+        'appid': 'wx2576c4210717a45b',
         'secret': 'f03e98a6fdcac7e37390cf2b2bb4a986',
         'js_code': code,
         'grant_type': 'authorization_code',
@@ -26,10 +26,12 @@ def login_wechat(code):
     try:
         response = requests.get(url, params=params, timeout=5)
         result = response.json()
-        result = {'openid': 'test1234openid', 'session_key': 'session123'} # test
+        print('code', code, 'wechat login response', result)
     except Exception as e:
         return create_response_data(-1, f'failed to request api: {e}')
 
+    if 'errcode' in result:
+        return create_response_data(-1, result['errmsg'])
     return create_response_data(result=result)
 
 class CustomPagination(PageNumberPagination):
@@ -59,21 +61,26 @@ class UserCustomerView(APIView):
         if 'code' not in request.data:
             return Response(create_response_data(-1, 'code missing'))
 
-        login_response = login_wechat(request.data.get('openid'))
+        login_response = login_wechat(request.data.get('code'))
         if login_response['errcode'] != 0:
             return Response(create_response_data(-1, f"failed to login({login_response['errcode']}'): {login_response['errmsg']}"))
 
+        openid = login_response['result']['openid']
         data = {
-            'openid': login_response['result']['openid'],
             'access_token': login_response['result']['session_key'],
             'token_expired': timezone.now() + timedelta(days=7)
         }
-        
-        serializer = UserCustomerSerializer(data=data)
+        try:
+            user = UserCustomerModel.objects.get(openid=openid)
+            serializer = UserCustomerSerializer(user, data=data, partial=True)
+        except UserCustomerModel.DoesNotExist:
+            data['openid'] = openid
+            serializer = UserCustomerSerializer(data=data)
+
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
     
         return Response(create_response_data(result=serializer.data))
 
@@ -83,13 +90,13 @@ class UserCustomerView(APIView):
         try:
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
         except UserCustomerModel.DoesNotExist:
-            return Response(-1, 'user not found', status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
         
         serializer = UserCustomerSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
         
         return Response(create_response_data(result=serializer.data))
 
@@ -101,13 +108,13 @@ class UserCustomerView(APIView):
 
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
         except UserCustomerModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
         data = {'account_status': 2}
         serializer = UserCustomerSerializer(user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
         
         return Response(create_response_data(result='delete success'))
 
@@ -146,7 +153,7 @@ class UserMasterView(APIView):
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
     
         return Response(create_response_data(result=serializer.data))
 
@@ -156,12 +163,12 @@ class UserMasterView(APIView):
         try:
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
         except UserMasterModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
         serializer = UserMasterSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
         
         return Response(create_response_data(result=serializer.data))
 
@@ -171,13 +178,13 @@ class UserMasterView(APIView):
         try:
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
         except UserMasterModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
         data = { 'account_status': 3}
         serializer = UserMasterSerializer(user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
         
         return Response(create_response_data(result='delete success'))
 
@@ -195,7 +202,7 @@ class RepairOrderOfCustomerView(APIView):
         try:
             user = UserCustomerModel.objects.get(access_token=request.query_params.get('token'))
         except UserCustomerModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
 
         queryset = RepairOrderModel.objects.filter(sponsor=user)
         if 'status' in request.query_params:
@@ -203,11 +210,11 @@ class RepairOrderOfCustomerView(APIView):
         if 'recent_date' in request.query_params:
             recent_date = request.query_params.get('recent_date')
             recent_date_value = timezone.now()
-            if recent_date is 'last 3 days':
+            if recent_date == 'last 3 days':
                 recent_date_value = recent_date_value - timedelta(days=3)
-            elif recent_date is 'last a week':
+            elif recent_date == 'last a week':
                 recent_date_value = recent_date_value - timedelta(days=7)
-            elif recent_date is 'last a month':
+            elif recent_date == 'last a month':
                 recent_date_value = recent_date_value - timedelta(days=30)
             else:
                 recent_date_value = recent_date_value - timedelta(days=90)
@@ -226,7 +233,7 @@ class RepairOrderOfCustomerView(APIView):
         try:
             page = paginator.paginate_queryset(queryset, request)
         except NotFound as e:
-            return Response(create_response_data(-1, e.detail), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, e.detail))
         serializer = RepairOrderSerializer(page, many=True)
         result = paginator.get_paginated_result(serializer.data)
         return Response(create_response_data(result=result))
@@ -238,7 +245,7 @@ class RepairOrderOfCustomerView(APIView):
         try:
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
         except UserCustomerModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
 
         data = {
             'order_number': f"BYQG{timezone.now().strftime('%Y%m%d%H%M%s')}{random.randint(0, 999)}",
@@ -257,7 +264,7 @@ class RepairOrderOfCustomerView(APIView):
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
         
         return Response(create_response_data(result=serializer.data))
             
@@ -272,15 +279,15 @@ class RepairOrderOfCustomerView(APIView):
             user = UserCustomerModel.objects.get(access_token=request.data.get('token'))
             order = RepairOrderModel.objects.get(sponsor=user, order_number=request.data.get('order_number'))
         except UserCustomerModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
         except RepairOrderModel.DoesNotExist:
-            return Response(create_response_data(-1, 'order not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'order not found'))
             
         serializer = RepairOrderSerializer(order, data={'order_status': 2}, partial=True)
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
         
         return Response(create_response_data(result='delete success'))
 
@@ -301,9 +308,9 @@ class RepairOrderOfMasterView(APIView):
             user = UserMasterModel.objects.get(access_token=request.data.get('token'))
             order = RepairOrderModel.objects.get(order_number=request.data.get('order_number'))
         except UserMasterModel.DoesNotExist:
-            return Response(create_response_data(-1, 'user not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'user not found'))
         except RepairOrderModel.DoesNotExist:
-            return Response(create_response_data(-1, 'order not found'), status=status.HTTP_404_NOT_FOUND)
+            return Response(create_response_data(-1, 'order not found'))
 
         data = {
             'assignee': user.id,
@@ -319,7 +326,7 @@ class RepairOrderOfMasterView(APIView):
         if serializer.is_valid():
             serializer.save()
         else:
-            return Response(create_response_data(-1, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(create_response_data(-1, json.dumps(serializer.errors)))
             
         return Response(create_response_data(result=serializer.data))
 
