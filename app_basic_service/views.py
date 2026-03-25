@@ -26,7 +26,7 @@ def login_wechat(code):
     try:
         response = requests.get(url, params=params, timeout=5)
         result = response.json()
-        print('code', code, 'wechat', result)
+        print(code, result)
     except Exception as e:
         return create_response_data(-1, f'failed to request api: {e}')
 
@@ -239,7 +239,7 @@ class RepairOrderOfCustomerView(APIView):
         return Response(create_response_data(result=result))
 
     def post(self, request):
-        print('repair request', request.data)
+        print(request.data)
         if 'token' not in request.data:
             return Response(create_response_data(-1, 'token missing'))
         try:
