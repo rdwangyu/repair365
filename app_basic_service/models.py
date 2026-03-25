@@ -78,7 +78,8 @@ class UserMasterModel(CommonModel, UserModel):
 
 class RepairOrderModel(CommonModel):
     REPAIR_CATEGORY_CHOICES = {
-        0: '维修电动车'
+        0: '维修电动车',
+        999: '其他'
     }
     TRANSACTION_TYPE_CHOICES = {
         0: '网络支付'
