@@ -57,6 +57,18 @@ class CustomPagination(PageNumberPagination):
 
 
 class UserCustomerView(APIView):
+    def get(self, request):
+        if 'token' not in request.query_params:
+            return Response(create_response_data(-1, 'token missing'))
+        try:
+            user = UserCustomerModel.objects.get(access_token=request.query_params.get('token'))
+        except UserCustomerModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'))
+
+        serializer = UserCustomerSerializer(user)
+        return Response(create_response_data(result=serializer.data))
+        
+        
     def post(self, request):
         if 'code' not in request.data:
             return Response(create_response_data(-1, 'code missing'))
@@ -265,6 +277,13 @@ class RepairOrderOfCustomerView(APIView):
             serializer.save()
         else:
             return Response(create_response_data(-1, json.dumps(serializer.errors)))
+
+        if user.phone == '':
+            user_serializer = UserCustomerSerializer(user, data={'phone': serializer.data.get('contact_phone')}, partial=True)
+            if user_serializer.is_valid():
+                user_serializer.save()
+            else:
+                print('failed to update user profile: ', user_serializer.errors)
         
         return Response(create_response_data(result=serializer.data))
             
