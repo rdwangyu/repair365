@@ -7,5 +7,6 @@ urlpatterns = [
     path('customer/order/', RepairOrderOfCustomerView.as_view()),
     path('customer/order/<int:pk>/', RepairOrderOfCustomerView.as_view()),
     path('master/order/', RepairOrderOfMasterView.as_view()),
+    path('master/order/<int:pk>/', RepairOrderOfMasterView.as_view()),
 ]
 
