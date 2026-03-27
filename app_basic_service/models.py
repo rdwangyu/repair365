@@ -90,6 +90,7 @@ class RepairOrderModel(CommonModel):
         10: 'audited',
         20: 'published',
         30: 'assigned',
+        31: 'on-the-way',
         40: 'arrived',
         50: 'resolved',
         51: 'unresolved',

@@ -237,7 +237,8 @@ class RepairOrderOfCustomerView(APIView):
         serializer = RepairOrderSerializer(order)
         return create_response_data(result=serializer.data)
 
-    def __list(self, user, params):
+    def __list(self, user, request):
+        params = request.query_params
         queryset = RepairOrderModel.objects.filter(sponsor=user)
         if 'status' in params:
             queryset = queryset.filter(order_status=int(params.get('status')))
@@ -285,7 +286,7 @@ class RepairOrderOfCustomerView(APIView):
         if pk:
             response = self.__detail(user, pk)
         else:
-            response = self.__list(user, request.query_params)
+            response = self.__list(user, request)
 
         if response['errcode'] != 0:
             return Response(create_response_data(-1, response['errmsg']))
