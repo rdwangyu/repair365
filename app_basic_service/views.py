@@ -340,17 +340,17 @@ class RepairOrderOfCustomerView(APIView):
     def delete(self, request, pk):
         parse_response = parse_http_headers(request)
         if parse_response['errcode'] != 0:
-            return Response(create_response_data(-1, parse_result['errmsg']))
+            return Response(create_response_data(-1, parse_response['errmsg']))
 
         try:
-            user = UserCustomerModel.objects.get(access_token=parse_result['result'])
+            user = UserCustomerModel.objects.get(access_token=parse_response['result'])
             order = RepairOrderModel.objects.get(sponsor=user, pk=pk)
         except UserCustomerModel.DoesNotExist:
             return Response(create_response_data(-1, 'user not found'))
         except RepairOrderModel.DoesNotExist:
             return Response(create_response_data(-1, 'order not found'))
             
-        serializer = RepairOrderSerializer(order, data={'order_status': 2}, partial=True)
+        serializer = RepairOrderSerializer(order, data={'order_status': 1}, partial=True)
         if serializer.is_valid():
             serializer.save()
         else:
