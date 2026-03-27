@@ -1,6 +1,20 @@
 from rest_framework import serializers
 from .models import *
 
+class UploadImageSerializer(serializers.Serializer):
+    image = serializers.ImageField()
+    image_type = serializers.CharField(required=False, max_length=50)
+    
+    def validate_image(self, value):
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("图片大小不能超过10MB")
+        
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError(f"只支持 {', '.join(allowed_types)} 格式")
+        
+        return value
+
 class UserMasterSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserMasterModel

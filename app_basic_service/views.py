@@ -3,7 +3,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import MultiPartParser
 from datetime import timedelta
+from django.core.files.storage import default_storage
 import requests
 import json
 from .models import *
@@ -11,6 +13,10 @@ from .serializers import *
 from rest_framework import status
 import random
 from django.db.models import Q
+import os
+import uuid
+from django.conf import settings
+
 
 def create_response_data(errcode = 0, errmsg = '', result = {}):
     return {'errcode': errcode, 'errmsg': errmsg, 'result': result}
@@ -398,8 +404,41 @@ class RepairOrderOfMasterView(APIView):
         return Response(create_response_data(result=serializer.data))
 
 
+class UploadImageView(APIView):
+    parser_classes = [MultiPartParser]
 
-    
+    def post(self, request):
+        serializer = UploadImageSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(create_response_data(-1, serializer.errors))
+
+        image = serializer.validated_data['image']
+        try:
+            ext = os.path.splitext(image.name)[1].lower()
+            if not ext:
+                ext = '.jpg'
+            
+            unique_id = uuid.uuid4().hex
+            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
+            filename = f"{timestamp}_{unique_id}{ext}"
+            
+            date_path = timezone.now().strftime('%Y_%m_%d')
+            storage_path = f"uploads/{date_path}/{filename}"
+            saved_path = default_storage.save(storage_path, image)
+            
+            if settings.DEBUG:
+                url = request.build_absolute_uri(settings.MEDIA_URL + saved_path)
+            else:
+                url = f"https://your-domain.com{settings.MEDIA_URL}{saved_path}"
+
+            data = {
+                'url': url,
+                'filename': filename,
+                'size': image.size
+            }
+            return Response(create_response_data(result=data))
+        except Exception as e:
+            return Response(create_response_data(-1, f'上传失败：{str(e)}'))
 
 
 

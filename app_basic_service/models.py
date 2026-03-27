@@ -40,10 +40,6 @@ class UserCustomerModel(CommonModel, UserModel):
         verbose_name_plural = verbose_name
 
 class UserMasterModel(CommonModel, UserModel):
-    def upload_image_file(instance, filename):
-        ext = filename.split('.')[-1]
-        return f'image/{instance.fullname}_{instance.phone}/uploads.{ext}'
-    
     ACCOUNT_STATUS_CHOICES = {
         0: 'created',
         1: 'audited',
@@ -53,10 +49,10 @@ class UserMasterModel(CommonModel, UserModel):
     fullname = models.CharField(max_length=64)
     sex = models.SmallIntegerField()
     age = models.SmallIntegerField()
-    avatar = models.ImageField(upload_to=upload_image_file)
-    identity_card_0 = models.ImageField(upload_to=upload_image_file)
-    identity_card_1 = models.ImageField(upload_to=upload_image_file)
-    business_license = models.ImageField(upload_to=upload_image_file)
+    avatar = models.URLField(max_length=200)
+    identity_card_0 = models.URLField(max_length=200)
+    identity_card_1 = models.URLField(max_length=200)
+    business_license = models.URLField(max_length=200)
     phone = models.CharField(max_length=11)
     address = models.TextField(max_length=256)
     work_year = models.SmallIntegerField()
