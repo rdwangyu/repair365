@@ -110,7 +110,7 @@ class RepairOrderModel(CommonModel):
 
 
     def __str__(self):
-        return f'{self.id}-{self.sponsor.nickname}-{self.contact_phone}-{self.get_repair_category_display()}-{self.get_order_status_display()}'
+        return f'{self.id}-{self.order_number}-{self.sponsor.nickname}-{self.contact_phone}-{self.get_repair_category_display()}-{self.get_order_status_display()}'
 
     class Meta:
         db_table = 'repair_order'

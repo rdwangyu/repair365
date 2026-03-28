@@ -469,7 +469,7 @@ class RepairOrderOfMasterView(APIView):
 
         try:
             user = UserMasterModel.objects.get(access_token=parse_response['result'])
-            order = RepairOrderModel.objects.get(assignee=user, pk=pk)
+            order = RepairOrderModel.objects.get(pk=pk)
         except UserMasterModel.DoesNotExist:
             return Response(create_response_data(-1, 'user not found'))
         except RepairOrderModel.DoesNotExist:
