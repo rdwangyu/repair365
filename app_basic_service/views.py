@@ -159,31 +159,58 @@ User Master
 
 '''
 class UserMasterView(APIView):
+    def get(self, request):
+        parse_response = parse_http_headers(request)
+        if parse_response['errcode'] != 0:
+            return Response(create_response_data(-1, parse_response['errmsg']))
+
+        try:
+            user = UserMasterModel.objects.get(access_token=parse_response['result'])
+        except UserMasterModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'))
+
+        serializer = UserMasterSerializer(user)
+        return Response(create_response_data(result=serializer.data))
+
     # login
     def post(self, request):
         if 'code' not in request.data:
             return Response(create_response_data(-1, 'code missing'))
+        auto_reg = request.data.get('auto_reg', False)
 
         login_response = login_wechat(request.data.get('code'))
         if login_response['errcode'] != 0:
             return Response(create_response_data(-1, f"failed to login({login_response['errcode']}'): {login_response['errmsg']}"))
 
+        openid = login_response['result']['openid']
         data = {
-            'openid': login_response['result']['openid'],
             'access_token': login_response['result']['session_key'],
             'token_expired': timezone.now() + timedelta(days=7),
-            'fullname': request.data.get('fullname'),
-            'age': request.data.get('age'),
-            'sex': request.data.get('sex'),
-            'phone': request.data.get('phone'),
-            'address': request.data.get('address'),
-            'work_year': request.data.get('work_year'),
-            'avatar': request.data.get('avatar'),
-            'identity_card_0': request.data.get('identity_card_0'),
-            'identity_card_1': request.data.get('identity_card_1'),
-            'business_license': request.data.get('business_license'),
         }
-        serializer = UserMasterSerializer(data=data)
+        try:
+            user = UserMasterModel.objects.get(openid=openid)
+            serializer = UserMasterSerializer(user, data=data, partial=True)
+        except UserMasterModel.DoesNotExist:
+            if not auto_reg:
+                return Response(create_response_data(-1, 'user not found'))
+
+            data = {
+                'openid': openid,
+                'access_token': login_response['result']['session_key'],
+                'token_expired': timezone.now() + timedelta(days=7),
+                'fullname': request.data.get('fullname'),
+                'age': request.data.get('age'),
+                'sex': request.data.get('sex'),
+                'phone': request.data.get('phone'),
+                'address': request.data.get('address'),
+                'work_year': request.data.get('work_year'),
+                'avatar': request.data.get('avatar'),
+                'identity_card_0': request.data.get('identity_card_0'),
+                'identity_card_1': request.data.get('identity_card_1'),
+                'business_license': request.data.get('business_license'),
+            }
+            serializer = UserMasterSerializer(data=data)
+
         if serializer.is_valid():
             serializer.save()
         else:
