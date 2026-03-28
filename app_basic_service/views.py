@@ -395,8 +395,71 @@ class RepairOrderOfCustomerView(APIView):
 
 
 class RepairOrderOfMasterView(APIView):
-    def get(self, request):
-        return
+    def __detail(self, user, pk):
+        try:
+            order = RepairOrderModel.objects.get(pk=pk)
+        except RepairOrderModel.DoesNotExist:
+            return create_response_data(-1, 'order not found: ' + str(pk))
+        serializer = RepairOrderSerializer(order)
+        return create_response_data(result=serializer.data)
+
+    def __list(self, user, request):
+        params = request.query_params
+        show_range = [20, 30, 31, 40, 50, 51, 60, 61]
+        queryset = RepairOrderModel.objects.filter(
+            Q(assignee=user) | Q(assignee__isnull=True),
+            order_status__in=show_range)
+        if 'status' in params:
+            queryset = queryset.filter(order_status=int(params.get('status')))
+        if 'recent_date' in params:
+            recent_date = params.get('recent_date')
+            recent_date_value = timezone.now()
+            if recent_date == 'last 3 days':
+                recent_date_value = recent_date_value - timedelta(days=3)
+            elif recent_date == 'last a week':
+                recent_date_value = recent_date_value - timedelta(days=7)
+            elif recent_date == 'last a month':
+                recent_date_value = recent_date_value - timedelta(days=30)
+            else:
+                recent_date_value = recent_date_value - timedelta(days=90)
+            queryset = queryset.filter(create_time__gte=recent_date_value)
+
+        if 'search_keyword' in params:
+            search_keyword = params.get('search_keyword', '').strip()
+            search_conditions = Q(order_number__icontains=search_keyword)
+            search_conditions |= Q(issue_description__icontains=search_keyword)
+            search_conditions |= Q(comment__icontains=search_keyword)
+            queryset = queryset.filter(search_conditions)
+
+        queryset = queryset.order_by('-create_time')
+        paginator = CustomPagination()
+        try:
+            page = paginator.paginate_queryset(queryset, request)
+        except NotFound as e:
+            return create_response_data(-1, e.detail)
+        serializer = RepairOrderSerializer(page, many=True)
+        result = paginator.get_paginated_result(serializer.data)
+        return create_response_data(result=result)
+        
+    def get(self, request, pk=None):
+        parse_response = parse_http_headers(request)
+        if parse_response['errcode'] != 0:
+            return Response(create_response_data(-1, parse_response['errmsg']))
+
+        try:
+            user = UserMasterModel.objects.get(access_token=parse_response['result'])
+        except UserMasterModel.DoesNotExist:
+            return Response(create_response_data(-1, 'user not found'))
+
+        if pk:
+            response = self.__detail(user, pk)
+        else:
+            response = self.__list(user, request)
+
+        if response['errcode'] != 0:
+            return Response(create_response_data(-1, response['errmsg']))
+        else:
+            return Response(create_response_data(result=response['result']))
 
 
     def put(self, request, pk):
