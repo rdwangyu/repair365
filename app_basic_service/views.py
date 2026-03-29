@@ -268,6 +268,7 @@ class RepairOrderOfCustomerView(APIView):
         except RepairOrderModel.DoesNotExist:
             return create_response_data(-1, 'order not found: ' + str(pk))
         serializer = RepairOrderSerializer(order)
+        print(serializer.data, 1111)
         return create_response_data(result=serializer.data)
 
     def __list(self, user, request):
@@ -349,6 +350,7 @@ class RepairOrderOfCustomerView(APIView):
         if 'comment' in request.data:
             data['comment'] = request.data.get('comment')
 
+        data['order_status'] = 20
         serializer = RepairOrderSerializer(data=data)
         if serializer.is_valid():
             serializer.save()

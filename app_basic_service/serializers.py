@@ -41,6 +41,8 @@ class UserCustomerSerializer(serializers.ModelSerializer):
 
 
 class RepairOrderSerializer(serializers.ModelSerializer):
+    assignee = UserMasterSerializer(read_only=True)
+    sponsor = UserCustomerSerializer(read_only=True)
     class Meta:
         model = RepairOrderModel
         fields = '__all__'
