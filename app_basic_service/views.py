@@ -35,8 +35,8 @@ def parse_http_headers(request):
 def login_wechat(code):
     url = 'https://api.weixin.qq.com/sns/jscode2session'
     params = {
-        'appid': 'wx2576c4210717a45b',
-        'secret': 'f03e98a6fdcac7e37390cf2b2bb4a986',
+        'appid': 'wx978f49a670b0aa59',
+        'secret': 'a6aa01ae86306bc963a74a731a348a37',
         'js_code': code,
         'grant_type': 'authorization_code',
     }

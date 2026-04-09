@@ -32,7 +32,7 @@ class UserCustomerModel(CommonModel, UserModel):
     account_status = models.SmallIntegerField(choices=ACCOUNT_STATUS_CHOICES, blank=True, default=0)
 
     def __str__(self):
-        return f'User({self.nickname})-Phone({self.phone})'
+        return f'{self.id}-User({self.nickname})-Phone({self.phone})'
 
     class Meta:
         db_table = 'user_customer'
@@ -64,7 +64,7 @@ class UserMasterModel(CommonModel, UserModel):
     account_status = models.SmallIntegerField(choices=ACCOUNT_STATUS_CHOICES, blank=True, default=0)
 
     def __str__(self):
-        return f'User({self.fullname})-Phone({self.phone})'
+        return f'{self.id}-User({self.fullname})-Phone({self.phone})'
         
     class Meta:
         db_table = 'user_master'
